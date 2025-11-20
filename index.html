@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Donasi Interaktif</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+.navbar {box-shadow: 0 2px 6px rgba(0,0,0,0.15);}
+.table-responsive {background-color: #db1212; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+#loginBox, #registerBox, #dataForm {max-width: 450px; margin: 30px auto; background-color: #49e92c; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);}
+.progress {height:20px;}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginBox">
+  <h4 class="text-center mb-4">Login Anggota</h4>
+  <input type="email" id="email" class="form-control mb-2" placeholder="Email">
+  <input type="password" id="password" class="form-control mb-2" placeholder="Password">
+  <button class="btn btn-primary w-100 mb-2" onclick="login()">Login</button>
+  <div class="text-center"><a href="#" onclick="showRegister()">Daftar Akun</a></div>
+  <div id="loginError" class="text-danger mt-2 text-center" style="display:none;"></div>
+</div>
+
+<!-- Register -->
+<div id="registerBox" style="display:none;">
+  <h4 class="text-center mb-4">Daftar Anggota</h4>
+  <input type="email" id="regEmail" class="form-control mb-2" placeholder="Email">
+  <input type="password" id="regPassword" class="form-control mb-2" placeholder="Password">
+  <button class="btn btn-success w-100 mb-2" onclick="register()">Daftar</button>
+  <div class="text-center"><a href="#" onclick="showLogin()">Kembali ke Login</a></div>
+  <div id="registerError" class="text-danger mt-2 text-center" style="display:none;"></div>
+</div>
+
+<!-- Main Content -->
+<div id="mainContent" style="display:none;">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-3">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Data OMK Sekonau yang sudah melakukan kewajibannya</a>
+    <button class="btn btn-danger ms-auto" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="container mb-4">
+  <div class="p-4 bg-white rounded shadow mb-3">
+    <h5>Data Rekening Bank Donasi</h5>
+    <ul class="list-group list-group-flush mt-2">
+      <li class="list-group-item"><strong>Bank:</strong> BCA</li>
+      <li class="list-group-item"><strong>No Rekening:</strong> 1234567890</li>
+      <li class="list-group-item"><strong>Atas Nama:</strong> Yayasan Aksi Kasih</li>
+    </ul>
+  </div>
+
+  <!-- Form Tambah Data -->
+  <div id="dataForm" class="p-4 bg-white rounded shadow mb-3">
+    <h5>Tambah Data Pembayaran</h5>
+    <input type="text" id="nama" class="form-control mb-2" placeholder="Nama">
+    <select id="aksi" class="form-control mb-2">
+      <option value="natal">Aksi Natal</option>
+      <option value="paskah">Aksi Paskah</option>
+    </select>
+    <input type="file" id="bukti" class="form-control mb-2">
+    <button class="btn btn-primary w-100" onclick="submitData()">Submit</button>
+    <div class="progress mt-2" style="display:none;" id="progressWrapper">
+      <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%" id="progressBar">0%</div>
+    </div>
+    <div id="uploadStatus" class="mt-2 text-center"></div>
+  </div>
+
+  <!-- Filter -->
+  <div class="mb-2">
+    <select id="filterAksi" class="form-select" onchange="loadData()">
+      <option value="all">Semua Aksi</option>
+      <option value="natal">Aksi Natal</option>
+      <option value="paskah">Aksi Paskah</option>
+    </select>
+  </div>
+
+  <!-- Tabel Donasi -->
+  <div class="table-responsive">
+    <table class="table table-hover" id="donasiTable">
+      <thead class="table-primary">
+        <tr>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Aksi</th>
+          <th>Keterangan</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Bukti -->
+<div class="modal fade" id="buktiModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bukti Pembayaran</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="buktiImage" class="img-fluid rounded">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCHnFBBhKUg9I0f84ai8_X7kcuQjqgSK5w",
+  authDomain: "loginaksi.firebaseapp.com",
+  projectId: "loginaksi",
+  storageBucket: "loginaksi.firebasestorage.app",
+  messagingSenderId: "720249983474",
+  appId: "1:720249983474:web:55df55224903817c699b6b",
+  measurementId: "G-7V9FJV28WG"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// Login/Register
+function login(){
+  const email=document.getElementById('email').value;
+  const pass=document.getElementById('password').value;
+  auth.signInWithEmailAndPassword(email,pass)
+  .then(()=>{document.getElementById('loginBox').style.display='none';document.getElementById('mainContent').style.display='block'; loadData();})
+  .catch(err=>{document.getElementById('loginError').innerText=err.message;document.getElementById('loginError').style.display='block';});
+}
+function showRegister(){document.getElementById('loginBox').style.display='none';document.getElementById('registerBox').style.display='block';}
+function showLogin(){document.getElementById('registerBox').style.display='none';document.getElementById('loginBox').style.display='block';}
+function register(){
+  const email=document.getElementById('regEmail').value;
+  const pass=document.getElementById('regPassword').value;
+  auth.createUserWithEmailAndPassword(email,pass)
+  .then(()=>{alert("Akun berhasil dibuat!"); showLogin();})
+  .catch(err=>{document.getElementById('registerError').innerText=err.message;document.getElementById('registerError').style.display='block';});
+}
+function logout(){auth.signOut().then(()=>{location.reload();});}
+
+// Submit data dengan progress bar
+function submitData(){
+  const nama=document.getElementById('nama').value;
+  const aksi=document.getElementById('aksi').value;
+  const file=document.getElementById('bukti').files[0];
+  if(!nama || !file){ alert("Lengkapi data"); return; }
+
+  const progressWrapper=document.getElementById('progressWrapper');
+  const progressBar=document.getElementById('progressBar');
+  const uploadStatus=document.getElementById('uploadStatus');
+  progressWrapper.style.display='block';
+  uploadStatus.textContent="Mengupload file...";
+
+  const fileRef=storage.ref('bukti/'+Date.now()+'-'+file.name);
+  const uploadTask=fileRef.put(file);
+
+  uploadTask.on('state_changed',
+    snapshot=>{
+      const progress=(snapshot.bytesTransferred/snapshot.totalBytes)*100;
+      progressBar.style.width=progress+'%';
+      progressBar.textContent=Math.round(progress)+'%';
+    },
+    error=>{uploadStatus.textContent="Upload gagal: "+error.message; progressWrapper.style.display='none';},
+    ()=>{
+      uploadTask.snapshot.ref.getDownloadURL().then(url=>{
+        db.collection('donasi').add({
+          nama:nama, aksi:aksi, bayar:true, bukti:url, timestamp:firebase.firestore.FieldValue.serverTimestamp()
+        }).then(()=>{
+          uploadStatus.textContent="Upload berhasil!";
+          progressBar.style.width='100%';
+          progressBar.textContent='100%';
+          loadData();
+          document.getElementById('nama').value='';
+          document.getElementById('bukti').value='';
+        });
+      });
+    }
+  );
+}
+
+// Load Data Tabel
+function loadData(){
+  const tbody=document.querySelector('#donasiTable tbody');
+  tbody.innerHTML='';
+  const filterAksi=document.getElementById('filterAksi').value;
+  db.collection('donasi').orderBy('timestamp','asc').get().then(snapshot=>{
+    let no=1;
+    snapshot.forEach(doc=>{
+      const data=doc.data();
+      if(filterAksi!=='all' && data.aksi!==filterAksi) return;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${no}</td>
+                    <td>${data.nama}</td>
+                    <td>${data.aksi}</td>
+                    <td>${data.bayar ? `<button class="btn btn-sm btn-success btn-bukti" onclick="showBukti('${data.bukti}')">Lihat Bukti</button>` : '<span class="text-danger">Belum Bayar</span>'}</td>`;
+      tbody.appendChild(tr);
+      if(data.bayar){tr.classList.add('table-success');}else{tr.classList.add('table-danger');}
+      no++;
+    });
+  });
+}
+
+// Modal bukti
+function showBukti(url){
+  document.getElementById('buktiImage').src=url;
+  const modal=new bootstrap.Modal(document.getElementById('buktiModal'));
+  modal.show();
+}
+</script>
+</body>
+</html>
