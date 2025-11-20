@@ -8,15 +8,19 @@
 <style>
 body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
 .navbar {box-shadow: 0 2px 6px rgba(0,0,0,0.15);}
-.table-responsive {background-color: #db1212; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
-#loginBox, #registerBox, #dataForm {max-width: 450px; margin: 30px auto; background-color: #49e92c; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);}
+#mainContent {display:none;}
+.form-box {max-width: 450px; margin: 30px auto; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);}
+#loginBox {background-color:#49e92c;}
+#registerBox {background-color:#00c0ff;}
+#dataForm {background-color:#ffffff;}
 .progress {height:20px;}
+.table-responsive {background-color:#ffffff; padding:15px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
 </style>
 </head>
 <body>
 
 <!-- Login -->
-<div id="loginBox">
+<div id="loginBox" class="form-box">
   <h4 class="text-center mb-4">Login Anggota</h4>
   <input type="email" id="email" class="form-control mb-2" placeholder="Email">
   <input type="password" id="password" class="form-control mb-2" placeholder="Password">
@@ -26,7 +30,7 @@ body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdan
 </div>
 
 <!-- Register -->
-<div id="registerBox" style="display:none;">
+<div id="registerBox" class="form-box" style="display:none;">
   <h4 class="text-center mb-4">Daftar Anggota</h4>
   <input type="email" id="regEmail" class="form-control mb-2" placeholder="Email">
   <input type="password" id="regPassword" class="form-control mb-2" placeholder="Password">
@@ -36,11 +40,10 @@ body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdan
 </div>
 
 <!-- Main Content -->
-<div id="mainContent" style="display:none;"></div>
-
+<div id="mainContent">
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-3">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">Data OMK Sekonau yang sudah melakukan kewajibannya</a>
+    <a class="navbar-brand" href="#">Data OMK Sekonau</a>
     <button class="btn btn-danger ms-auto" onclick="logout()">Logout</button>
   </div>
 </nav>
@@ -56,7 +59,7 @@ body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdan
   </div>
 
   <!-- Form Tambah Data -->
-  <div id="dataForm" class="p-4 bg-white rounded shadow mb-3">
+  <div id="dataForm" class="p-4 mb-3">
     <h5>Tambah Data Pembayaran</h5>
     <input type="text" id="nama" class="form-control mb-2" placeholder="Nama">
     <select id="aksi" class="form-control mb-2">
@@ -105,10 +108,11 @@ body {background-color: #f7f8f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdan
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center">
-        <img id="buktiImage" class="img-fluid rounded" src="path/ke/gambar.jpg" alt="Bukti gambar">
+        <img id="buktiImage" class="img-fluid rounded" src="" alt="Bukti gambar">
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -123,7 +127,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCHnFBBhKUg9I0f84ai8_X7kcuQjqgSK5w",
   authDomain: "loginaksi.firebaseapp.com",
   projectId: "loginaksi",
-  storageBucket: "loginaksi.firebasestorage.app",
+  storageBucket: "loginaksi.appspot.com",
   messagingSenderId: "720249983474",
   appId: "1:720249983474:web:55df55224903817c699b6b",
   measurementId: "G-7V9FJV28WG"
@@ -163,6 +167,8 @@ function submitData(){
   const progressBar=document.getElementById('progressBar');
   const uploadStatus=document.getElementById('uploadStatus');
   progressWrapper.style.display='block';
+  progressBar.style.width='0%';
+  progressBar.textContent='0%';
   uploadStatus.textContent="Mengupload file...";
 
   const fileRef=storage.ref('bukti/'+Date.now()+'-'+file.name);
@@ -178,7 +184,11 @@ function submitData(){
     ()=>{
       uploadTask.snapshot.ref.getDownloadURL().then(url=>{
         db.collection('donasi').add({
-          nama:nama, aksi:aksi, bayar:true, bukti:url, timestamp:firebase.firestore.FieldValue.serverTimestamp()
+          nama:nama,
+          aksi:aksi,
+          bayar:true,
+          bukti:url,
+          timestamp:firebase.firestore.FieldValue.serverTimestamp()
         }).then(()=>{
           uploadStatus.textContent="Upload berhasil!";
           progressBar.style.width='100%';
@@ -201,7 +211,7 @@ function loadData(){
     let no=1;
     snapshot.forEach(doc=>{
       const data=doc.data();
-      if(filterAksi!=='all' && data.aksi!==filterAksi) return;
+      if(filterAksi!=='all' && data.aksi.toLowerCase()!==filterAksi.toLowerCase()) return;
       const tr=document.createElement('tr');
       tr.innerHTML=`<td>${no}</td>
                     <td>${data.nama}</td>
